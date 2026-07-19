@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Life Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <div>
+          <h1>Game of Life</h1>
+        </div>
+        <div class="actions">
+          <button id="clear-btn" type="button">Clear</button>
+          <button id="stop-btn" type="button" disabled>Stop</button>
+          <button id="submit-btn" type="button">Run</button>
+        </div>
+      </header>
+
+      <section class="board-wrap">
+        <div id="board" class="board" aria-label="100 by 100 grid"></div>
+      </section>
+
+      <section class="status-wrap">
+        <div id="status" class="status">Ready</div>
+      </section>
+    </main>
+
+    <script src="/static/dashboard.js"></script>
+  </body>
+</html>

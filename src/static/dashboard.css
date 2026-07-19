@@ -1,0 +1,135 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #0b1020;
+  color: #e7ecff;
+}
+
+.page {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.generations-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #b8c3ea;
+}
+
+.generations-control input {
+  width: 96px;
+  border: 1px solid #324165;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #10172b;
+  color: #e7ecff;
+  box-sizing: border-box;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #2a3cff;
+  color: white;
+  font-weight: 600;
+}
+
+button#clear-btn {
+  background: #24304f;
+}
+
+.board-wrap {
+  overflow: auto;
+  border: 1px solid #223050;
+  border-radius: 12px;
+  background: #10172b;
+  padding: 8px;
+}
+
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(100, 10px);
+  grid-auto-rows: 10px;
+  width: max-content;
+  user-select: none;
+}
+
+.cell {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #141b31;
+  box-sizing: border-box;
+}
+
+.cell.alive {
+  background: #7cff7a;
+}
+
+.cell.playback {
+  outline: 1px solid rgba(255, 213, 79, 0.7);
+  outline-offset: -1px;
+}
+
+.region-divider {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.region-divider-vertical {
+  top: 0;
+  left: 500px;
+  width: 2px;
+  height: 1000px;
+}
+
+.region-divider-horizontal {
+  left: 0;
+  top: 500px;
+  width: 1000px;
+  height: 2px;
+}
+
+.board.playback-disabled {
+  pointer-events: none;
+  opacity: 0.96;
+}
+
+.status {
+  min-height: 1.5em;
+  opacity: 0.9;
+}
+
+.error {
+  min-height: 1.5em;
+  color: #ff8a8a;
+  font-size: 0.95rem;
+}
