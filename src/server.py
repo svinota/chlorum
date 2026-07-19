@@ -1,5 +1,6 @@
 from collections import deque
 import asyncio
+from datetime import datetime, timezone
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from uuid import uuid4
@@ -15,6 +16,7 @@ from data import Matrix, TileRange
 @dataclass(slots=True)
 class QueueState:
     tasks: deque[TileRange] = field(default_factory=deque)
+    in_flight: dict[str, tuple[TileRange, datetime]] = field(default_factory=dict)
     task_ready: asyncio.Condition = field(default_factory=asyncio.Condition)
     ready_answers: dict[str, TileRange] = field(default_factory=dict)
     pending_answers: dict[str, dict[int, TileRange]] = field(
@@ -26,6 +28,7 @@ class QueueState:
 state = QueueState()
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
+TASK_LEASE_SECONDS = 120
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
@@ -37,6 +40,7 @@ async def get_task() -> dict:
             await state.task_ready.wait()
 
         task = state.tasks.popleft()
+        state.in_flight[task.id] = (task, datetime.now(timezone.utc))
         return jsonable_encoder(asdict(task))
 
 
@@ -61,6 +65,7 @@ async def post_task_new(task: TileRange) -> dict:
 
 @app.post("/task/ready")
 async def post_task_ready(answer: TileRange) -> dict:
+    state.in_flight.pop(answer.id, None)
     if answer.parent_id is None:
         async with state.answer_ready:
             state.ready_answers[answer.id] = answer
@@ -270,7 +275,31 @@ def _trim_halo_for_generation(region: TileRange, generation: int) -> Matrix:
 def serialize_queue() -> dict:
     return {
         "tasks_size": len(state.tasks),
+        "in_flight_size": len(state.in_flight),
         "answers_size": len(state.ready_answers),
         "tasks": [asdict(task) for task in state.tasks],
         "answers": [asdict(answer) for answer in state.ready_answers.values()],
     }
+
+
+@app.on_event("startup")
+async def start_task_requeue_loop() -> None:
+    async def _requeue_expired_tasks() -> None:
+        while True:
+            await asyncio.sleep(5)
+            now = datetime.now(timezone.utc)
+            expired: list[str] = []
+
+            async with state.task_ready:
+                for task_id, (task, acquired_at) in list(state.in_flight.items()):
+                    if (now - acquired_at).total_seconds() >= TASK_LEASE_SECONDS:
+                        expired.append(task_id)
+                        state.tasks.appendleft(task)
+
+                for task_id in expired:
+                    del state.in_flight[task_id]
+
+                if expired:
+                    state.task_ready.notify_all()
+
+    asyncio.create_task(_requeue_expired_tasks())
