@@ -10,7 +10,7 @@ import requests
 from data import TileRange
 
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://172.19.181.254:8000"
 DAY_TIMEOUT = 24 * 60 * 60
 WORKER_PATH = Path(__file__).with_name("worker.py")
 
