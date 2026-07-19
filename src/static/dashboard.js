@@ -1,8 +1,9 @@
 const SIZE = 100;
 const GENERATIONS_WINDOW = 10;
-const FRAME_DELAY = 500;
+let frameDelay = 500;
 
 const board = document.getElementById("board");
+const frameDelayInput = document.getElementById("frame-delay-input");
 const submitBtn = document.getElementById("submit-btn");
 const clearBtn = document.getElementById("clear-btn");
 const stopBtn = document.getElementById("stop-btn");
@@ -29,6 +30,13 @@ function unlockRun() {
 
 function setStatus(text) {
   status.textContent = text;
+}
+
+function syncFrameDelayFromInput() {
+  const value = Number(frameDelayInput.value);
+  if (Number.isFinite(value) && value >= 0) {
+    frameDelay = value;
+  }
 }
 
 function stopRun() {
@@ -165,7 +173,7 @@ function playbackTick() {
   displayedGeneration += 1;
   setStatus(`Playing ${displayedGeneration}`);
   maybeSubmitNextTask(nextFrame);
-  playbackTimer = setTimeout(playbackTick, FRAME_DELAY);
+  playbackTimer = setTimeout(playbackTick, frameDelay);
 }
 
 function appendRegionOverlay() {
@@ -245,6 +253,10 @@ stopBtn.addEventListener("click", () => {
   renderMatrix(matrix);
   setStatus("Stopped");
 });
+
+frameDelayInput.addEventListener("input", syncFrameDelayFromInput);
+
+syncFrameDelayFromInput();
 
 renderMatrix(matrix);
 setStatus("Ready");
