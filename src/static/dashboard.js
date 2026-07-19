@@ -19,6 +19,7 @@ let taskInFlight = false;
 let nextGenerationStart = 0;
 let requestController = null;
 let displayedGeneration = 0;
+let activeParentId = null;
 
 function lockRun() {
   submitBtn.disabled = true;
@@ -40,10 +41,18 @@ function syncFrameDelayFromInput() {
 }
 
 function stopRun() {
+  const parentId = activeParentId;
+  activeParentId = null;
   runActive = false;
   runId += 1;
   requestController?.abort();
   requestController = null;
+
+  if (parentId !== null) {
+    fetch(`/task/${encodeURIComponent(parentId)}/cancel`, {
+      method: "POST",
+    }).catch(() => {});
+  }
 
   if (playbackTimer !== null) {
     clearTimeout(playbackTimer);
@@ -117,6 +126,7 @@ function orderedGenerations(generations) {
 async function submitTask(seedFrame, generationStart, currentRunId) {
   const payload = buildPayload(seedFrame, generationStart);
   const controller = requestController;
+  activeParentId = payload.id;
   taskInFlight = true;
 
   try {
@@ -142,6 +152,7 @@ async function submitTask(seedFrame, generationStart, currentRunId) {
     return;
   } finally {
     if (currentRunId === runId) {
+      if (activeParentId === payload.id) activeParentId = null;
       taskInFlight = false;
     }
   }

@@ -28,7 +28,7 @@ class QueueState:
 state = QueueState()
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
-TASK_LEASE_SECONDS = 120
+TASK_LEASE_SECONDS = 30
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
@@ -63,31 +63,74 @@ async def post_task_new(task: TileRange) -> dict:
     }
 
 
+@app.post("/task/{parent_id}/cancel")
+async def post_task_cancel(parent_id: str) -> dict:
+    async with state.task_ready:
+        queued_before = len(state.tasks)
+        state.tasks = deque(
+            task for task in state.tasks if task.parent_id != parent_id
+        )
+        queued_removed = queued_before - len(state.tasks)
+
+        in_flight_ids = [
+            task_id
+            for task_id, (task, _) in state.in_flight.items()
+            if task.parent_id == parent_id
+        ]
+        for task_id in in_flight_ids:
+            del state.in_flight[task_id]
+
+        state.pending_answers.pop(parent_id, None)
+        async with state.answer_ready:
+            ready_ids = [
+                answer_id
+                for answer_id, answer in state.ready_answers.items()
+                if answer_id == parent_id or answer.parent_id == parent_id
+            ]
+            for answer_id in ready_ids:
+                del state.ready_answers[answer_id]
+
+    return {
+        "status": "cancelled",
+        "queued_removed": queued_removed,
+        "in_flight_removed": len(in_flight_ids),
+    }
+
+
 @app.post("/task/ready")
 async def post_task_ready(answer: TileRange) -> dict:
-    state.in_flight.pop(answer.id, None)
-    if answer.parent_id is None:
+    async with state.task_ready:
+        if state.in_flight.pop(answer.id, None) is None:
+            return {"status": "ignored"}
+
+        if answer.parent_id is None:
+            async with state.answer_ready:
+                state.ready_answers[answer.id] = answer
+                state.answer_ready.notify_all()
+            return {
+                "status": "queued",
+                "answers_size": len(state.ready_answers),
+            }
+
+        bucket = state.pending_answers.setdefault(answer.parent_id, {})
+        bucket[answer.region_id] = answer
+
+        if len(bucket) < 4:
+            return {
+                "status": "pending",
+                "received_regions": len(bucket),
+                "answers_size": len(state.ready_answers),
+            }
+
+        merged = merge_region_answers(answer.parent_id, bucket)
         async with state.answer_ready:
-            state.ready_answers[answer.id] = answer
+            state.ready_answers[merged.parent_id or merged.id] = merged
             state.answer_ready.notify_all()
-        return {"status": "queued", "answers_size": len(state.ready_answers)}
-
-    bucket = state.pending_answers.setdefault(answer.parent_id, {})
-    bucket[answer.region_id] = answer
-
-    if len(bucket) < 4:
+        del state.pending_answers[answer.parent_id]
         return {
-            "status": "pending",
-            "received_regions": len(bucket),
+            "status": "merged",
             "answers_size": len(state.ready_answers),
         }
-
-    merged = merge_region_answers(answer.parent_id, bucket)
-    async with state.answer_ready:
-        state.ready_answers[merged.parent_id or merged.id] = merged
-        state.answer_ready.notify_all()
-    del state.pending_answers[answer.parent_id]
-    return {"status": "merged", "answers_size": len(state.ready_answers)}
 
 
 @app.get("/dashboard")
@@ -201,7 +244,7 @@ def split_task_into_regions(
         )
         regions.append(
             TileRange(
-                id=uuid4(),
+                id=str(uuid4()),
                 parent_id=task.id,
                 region_id=region_id,
                 offset_row=row_start,
