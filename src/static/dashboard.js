@@ -52,7 +52,7 @@ function stopRun() {
 
 function buildPayload(seedFrame, generationStart) {
   return {
-    id: crypto.randomUUID(),
+    id: String(Math.random()),
     generation_start: generationStart,
     generation_end: generationStart + GENERATIONS_WINDOW,
     halo: GENERATIONS_WINDOW,

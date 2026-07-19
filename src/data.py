@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from uuid import UUID
 
 
 Matrix = list[list[int]]
@@ -7,11 +6,11 @@ Matrix = list[list[int]]
 
 @dataclass(slots=True)
 class TileRange:
-    id: UUID
+    id: str
     generation_start: int
     generation_end: int = 10
     halo: int = 10
-    parent_id: UUID | None = None
+    parent_id: str | None = None
     region_id: int = 0
     offset_row: int = 0
     offset_col: int = 0

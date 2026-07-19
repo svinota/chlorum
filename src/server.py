@@ -2,7 +2,7 @@ from collections import deque
 import asyncio
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -16,8 +16,8 @@ from data import Matrix, TileRange
 class QueueState:
     tasks: deque[TileRange] = field(default_factory=deque)
     task_ready: asyncio.Condition = field(default_factory=asyncio.Condition)
-    ready_answers: dict[UUID, TileRange] = field(default_factory=dict)
-    pending_answers: dict[UUID, dict[int, TileRange]] = field(
+    ready_answers: dict[str, TileRange] = field(default_factory=dict)
+    pending_answers: dict[str, dict[int, TileRange]] = field(
         default_factory=dict
     )
     answer_ready: asyncio.Condition = field(default_factory=asyncio.Condition)
@@ -104,7 +104,7 @@ def stats() -> dict:
 
 
 @app.get("/answer/{parent_id}")
-async def get_answer_for_parent(parent_id: UUID) -> dict:
+async def get_answer_for_parent(parent_id: str) -> dict:
     async with state.answer_ready:
         while parent_id not in state.ready_answers and not any(
             answer.parent_id == parent_id
@@ -127,7 +127,7 @@ def enqueue_task(
     generations: dict[int, Matrix],
     ) -> TileRange:
     task = TileRange(
-        id=uuid4(),
+        id=str(uuid4()),
         generation_start=generation_start,
         generation_end=generation_end,
         halo=halo,
@@ -212,7 +212,7 @@ def split_task_into_regions(
 
 
 def merge_region_answers(
-    parent_id: UUID, regions: dict[int, TileRange]
+    parent_id: str, regions: dict[int, TileRange]
 ) -> TileRange:
     ordered_regions = [regions[index] for index in range(4)]
     template = ordered_regions[0]
